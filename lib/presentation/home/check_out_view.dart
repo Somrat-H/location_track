@@ -19,7 +19,6 @@ class CheckOutScreen extends StatefulWidget {
 class _CheckOutScreenState extends State<CheckOutScreen> {
   // A variable to store the image
   XFile? _image;
-  String _location = 'Getting location...';
   bool isLoading = true;
   final ImagePicker _picker = ImagePicker();
   // late GoogleMapController _mapController;
@@ -40,7 +39,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
 
     if (permission == LocationPermission.denied) {
       setState(() {
-        _location = 'Permission denied!';
       });
       return;
     }
@@ -54,8 +52,6 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
         );
 
     setState(() {
-      _location =
-          'Latitude: ${position.latitude}, Longitude: ${position.longitude}';
       _currentPosition = LatLng(position.latitude, position.longitude);
       _markers.add(
         Marker(
@@ -122,11 +118,13 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                     return;
                   } else {
                     final feedback = await checkOut(
-                        employeeId: authProvider.user?.uid ?? "",
-                        latLong: [
-                          _currentPosition.latitude,
-                          _currentPosition.latitude
-                        ]);
+                      employeeId: authProvider.user?.uid ?? "",
+                      latLong: [
+                        _currentPosition.latitude,
+                        _currentPosition.latitude
+                      ],
+                      image: File(_image!.path),
+                    );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(feedback)),
