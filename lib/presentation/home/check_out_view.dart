@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/auth_provider.dart';
+import '../../data/background_task.dart';
 import '../../data/operations.dart';
 
 class CheckOutScreen extends StatefulWidget {
@@ -38,9 +39,9 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     LocationPermission permission = await Geolocator.requestPermission();
 
     if (permission == LocationPermission.denied) {
-      setState(() {
-      });
-      return;
+      setState(() {});
+      // return;
+      _getCurrentLocation();
     }
 
     // Get current location
@@ -125,6 +126,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                       ],
                       image: File(_image!.path),
                     );
+                    BackgroundServiece.stop();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(feedback)),

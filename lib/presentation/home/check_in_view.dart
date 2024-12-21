@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/auth_provider.dart';
+import '../../data/background_task.dart';
 import '../../data/operations.dart';
 
 class CheckInScreen extends StatefulWidget {
@@ -38,9 +39,16 @@ class _CheckInScreenState extends State<CheckInScreen> {
     LocationPermission permission = await Geolocator.requestPermission();
 
     if (permission == LocationPermission.denied) {
-      setState(() {});
-      return;
+      setState(() {
+        _getCurrentLocation();
+      });
+      // return;
     }
+    // if (permission != LocationPermission.always) {
+    //   await Geolocator.requestPermission();
+    //   setState(() {});
+    //   return;
+    // }
 
     // Get current location
     Position position = await Geolocator.getCurrentPosition(
@@ -81,15 +89,16 @@ class _CheckInScreenState extends State<CheckInScreen> {
         title: const Text("Check In"),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-          child: Column(
+      body: Column(
         children: [
-          _image == null
-              ? const Text('No image selected.')
-              : Image.file(File(_image!.path)),
-          SizedBox(
-            height: 200,
-            width: double.infinity,
+          Expanded(
+            child: _image == null
+                ? const Center(
+                    child: Text('No image selected.'),
+                  )
+                : Image.file(File(_image!.path)),
+          ),
+          Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : GoogleMap(
@@ -102,7 +111,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                   ),
           )
         ],
-      )),
+      ),
       bottomNavigationBar: SizedBox(
           width: double.infinity,
           child: Padding(
@@ -124,6 +133,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
                       ],
                       image: File(_image!.path),
                     );
+
+                    BackgroundServiece.startBackground();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(feedback)),

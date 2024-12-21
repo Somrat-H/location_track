@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:location_track/presentation/common/nav.dart';
 import 'package:location_track/env.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:location_track/presentation/home/check_out_view.dart';
 
+import '../../data/background_task.dart';
+import '../../data/local_storage.dart';
+import '../common/dialouge.dart';
 import 'check_in_view.dart';
 // import 'dart:io';
 
@@ -15,6 +20,24 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  void handlePermission() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission != LocationPermission.denied && context.mounted) {
+      await showLocationPermission(context);
+      await Geolocator.requestPermission();
+    }
+    Geolocator.requestPermission().asStream();
+    // if (permission == LocationPermission.always) {
+
+    // }
+  }
+
+  @override
+  void initState() {
+    handlePermission();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,8 +81,7 @@ class _HomeViewState extends State<HomeView> {
                 style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFFE9901)),
                 onPressed: () {
-                   navigateTo(context: context, widget: const CheckOutScreen());
-               
+                  navigateTo(context: context, widget: const CheckOutScreen());
                 },
                 icon: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -72,9 +94,8 @@ class _HomeViewState extends State<HomeView> {
                   padding: EdgeInsets.all(8.0),
                   child: Text("Check Out"),
                 )),
-
-                  const SizedBox(
-              height: 15,
+            const SizedBox(
+              height: 20,
             ),
             FilledButton.icon(
                 style: FilledButton.styleFrom(
