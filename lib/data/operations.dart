@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/user_model.dart';
 import 'local_storage.dart';
 
 DateFormat formatter = DateFormat('hh:mm a');
@@ -37,6 +38,7 @@ Future<String> addAttendance(
         "checkIn": {
           "time": formatter.format(date),
           "latLong": latLong,
+          "image": "imageUrl",
           "image": imageUrl,
         },
       }
@@ -119,9 +121,8 @@ Future<String> continusUpdate({
   final date = DateTime.now();
   try {
     // Get reference to the attendance collection, using the date as the document ID
-    DocumentReference attendanceDoc = firestore
-        .collection('')
-        .doc("${date.day}-${date.month}-${date.year}");
+    DocumentReference attendanceDoc =
+        firestore.collection('').doc("${date.day}-${date.month}-${date.year}");
 
     // Add employee attendance data under the date
     await attendanceDoc.set({
@@ -155,4 +156,21 @@ void trackLocation() async {
         employeeId: uid!,
         latLong: [currentPosition.latitude, currentPosition.longitude]);
   }
+}
+
+Future<String> addEmployee({required UserModel user}) async {
+  return "";
+}
+
+Future<List<UserModel>> listEmployee() async {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final snapshot = await firestore.collection("users").get();
+  if (snapshot.docs.isNotEmpty) {
+    List<UserModel> userList = snapshot.docs.map((doc) {
+      return UserModel.fromJson(doc.data() as Map<String, dynamic>);
+    }).toList();
+    return userList;
+  }
+
+  return [];
 }

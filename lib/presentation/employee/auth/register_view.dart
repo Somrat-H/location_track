@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../common/nav.dart';
+import '../../common/nav.dart';
 import '../home/home_view.dart';
 import 'login_view.dart';
 

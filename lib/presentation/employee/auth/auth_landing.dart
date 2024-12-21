@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:location_track/env.dart';
 
-import '../common/nav.dart';
+import '../../admin/admin_login_view.dart';
+import '../../common/nav.dart';
 import 'login_view.dart';
 import 'register_view.dart';
 
@@ -32,7 +33,7 @@ class AuthLandingScreen extends StatelessWidget {
               const Spacer(),
               ElevatedButton(
                 onPressed: () {
-                  navigateReplaceTo(context: context,widget:LoginInScreen() );
+                  navigateReplaceTo(context: context, widget: LoginInScreen());
                 },
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
@@ -42,20 +43,24 @@ class AuthLandingScreen extends StatelessWidget {
                   shape: const StadiumBorder(),
                 ),
                 child: Text(
-                  "Sign In",
+                  "Sign In as Employee",
                   style: textTheme.titleMedium,
                 ),
               ),
               const SizedBox(height: 16.0),
               ElevatedButton(
-                onPressed: () {navigateReplaceTo(context: context, widget: RegisterScreen());},
+                onPressed: () {
+                  navigateReplaceTo(
+                      context: context, widget: AdminLoginInScreen());
+                },
+                // onPressed: () {},
                 style: ElevatedButton.styleFrom(
                     elevation: 0,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 48),
                     shape: const StadiumBorder(),
                     backgroundColor: const Color(0xFFFE9901)),
-                child: Text("Sign Up", style: textTheme.titleMedium),
+                child: Text("Sign in as Admin", style: textTheme.titleMedium),
               ),
               const Spacer(flex: 2),
             ],

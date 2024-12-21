@@ -2,11 +2,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:location_track/data/local_storage.dart';
 import 'package:location_track/firebase_options.dart';
-import 'package:location_track/presentation/home/home_view.dart';
+import 'package:location_track/presentation/employee/home/home_view.dart';
 
 import 'data/auth_provider.dart';
 import 'data/background_task.dart';
-import 'presentation/auth/auth_landing.dart';
+import 'presentation/employee/auth/auth_landing.dart';
 import 'package:provider/provider.dart';
 import 'env.dart';
 

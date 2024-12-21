@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:location_track/presentation/home/home_view.dart';
+import 'package:location_track/presentation/admin/admin_home_view.dart';
+import 'package:location_track/presentation/employee/home/home_view.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/auth_provider.dart';
 import '../common/nav.dart';
-import 'register_view.dart';
 
-class LoginInScreen extends StatelessWidget {
+class AdminLoginInScreen extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
 
-  LoginInScreen({super.key});
+  AdminLoginInScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final AuthenticationProvider authProvider = context.watch();
@@ -18,12 +18,12 @@ class LoginInScreen extends StatelessWidget {
     String password = "";
 
     void login() async {
-      final feedback = await authProvider.signIn(email, password);
+      final feedback = await authProvider.signIn(email, password,true);
       if (feedback == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Login sccessfull with $email')),
         );
-        navigateReplaceTo(context: context, widget: const HomeView());
+        navigateReplaceTo(context: context, widget: const AdminHomeView());
       } else if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Login failed with $email')),
@@ -136,33 +136,33 @@ class LoginInScreen extends StatelessWidget {
                                 ),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            navigateReplaceTo(
-                                context: context, widget: RegisterScreen());
-                          },
-                          child: Text.rich(
-                            const TextSpan(
-                              text: "Don’t have an account? ",
-                              children: [
-                                TextSpan(
-                                  text: "Sign Up",
-                                  style: TextStyle(color: Color(0xFF00BF6D)),
-                                ),
-                              ],
-                            ),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium!
-                                .copyWith(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge!
-                                      .color!
-                                      .withOpacity(0.64),
-                                ),
-                          ),
-                        ),
+                        // TextButton(
+                        //   onPressed: () {
+                        //     navigateReplaceTo(
+                        //         context: context, widget: RegisterScreen());
+                        //   },
+                        //   child: Text.rich(
+                        //     const TextSpan(
+                        //       text: "Don’t have an account? ",
+                        //       children: [
+                        //         TextSpan(
+                        //           text: "Sign Up",
+                        //           style: TextStyle(color: Color(0xFF00BF6D)),
+                        //         ),
+                        //       ],
+                        //     ),
+                        //     style: Theme.of(context)
+                        //         .textTheme
+                        //         .bodyMedium!
+                        //         .copyWith(
+                        //           color: Theme.of(context)
+                        //               .textTheme
+                        //               .bodyLarge!
+                        //               .color!
+                        //               .withOpacity(0.64),
+                        //         ),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),

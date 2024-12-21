@@ -2,6 +2,7 @@ class UserModel {
   final String name;
   final String uid;
   final String? imageUrl;
+  final String? role;
   final String? department;
 
   UserModel({
@@ -9,6 +10,7 @@ class UserModel {
     required this.name,
     this.imageUrl,
     this.department,
+    this.role,
   });
 
   // fromJson: Creates a UserModel instance from a Map
@@ -17,6 +19,7 @@ class UserModel {
       uid: json['uid'] as String,
       name: json['name'] as String,
       imageUrl: json['imageUrl'] as String?,
+      role: json['role'] as String?,
       department: json['department'] as String?,
     );
   }

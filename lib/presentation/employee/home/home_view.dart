@@ -4,11 +4,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:location_track/presentation/common/nav.dart';
 import 'package:location_track/env.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:location_track/presentation/home/check_out_view.dart';
+import 'package:location_track/presentation/employee/home/check_out_view.dart';
+import 'package:provider/provider.dart';
 
-import '../../data/background_task.dart';
-import '../../data/local_storage.dart';
-import '../common/dialouge.dart';
+import '../../../data/auth_provider.dart';
+import '../../../data/background_task.dart';
+import '../../../data/local_storage.dart';
+import '../../common/dialouge.dart';
+import '../auth/auth_landing.dart';
 import 'check_in_view.dart';
 // import 'dart:io';
 
@@ -23,7 +26,7 @@ class _HomeViewState extends State<HomeView> {
   void handlePermission() async {
     LocationPermission permission = await Geolocator.requestPermission();
     if (permission != LocationPermission.denied && context.mounted) {
-      await showLocationPermission(context);
+      // await showLocationPermission(context);
       await Geolocator.requestPermission();
     }
     Geolocator.requestPermission().asStream();
@@ -40,12 +43,21 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final AuthenticationProvider authProvider = context.watch();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.lightGreen.withOpacity(0.1),
         title: const Text(appName),
         centerTitle: true,
+        actions: [
+          IconButton(
+              onPressed: () {
+                authProvider.signOut();
+                navigateReplaceTo(context: context, widget:const AuthLandingScreen());
+              },
+              icon: Icon(Icons.logout))
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(26.0),

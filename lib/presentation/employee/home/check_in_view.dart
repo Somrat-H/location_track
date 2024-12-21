@@ -6,9 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/auth_provider.dart';
-import '../../data/background_task.dart';
-import '../../data/operations.dart';
+import '../../../data/auth_provider.dart';
+import '../../../data/background_task.dart';
+import '../../../data/operations.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
