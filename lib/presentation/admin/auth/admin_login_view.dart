@@ -4,8 +4,8 @@ import 'package:location_track/presentation/employee/home/home_view.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/auth_provider.dart';
-import '../common/nav.dart';
+import '../../../data/auth_provider.dart';
+import '../../common/nav.dart';
 
 class AdminLoginInScreen extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();

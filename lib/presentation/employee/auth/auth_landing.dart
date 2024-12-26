@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:location_track/env.dart';
 
-import '../../admin/admin_login_view.dart';
+import '../../admin/auth/admin_login_view.dart';
 import '../../common/nav.dart';
 import 'login_view.dart';
 import 'register_view.dart';

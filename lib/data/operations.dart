@@ -7,13 +7,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../models/attendence_model.dart';
+import '../models/check_in_model.dart';
 import '../models/clint_model.dart';
 import '../models/user_model.dart';
 import 'local_storage.dart';
 
 DateFormat formatter = DateFormat('hh:mm a');
-DateFormat hourly = DateFormat('hh:mm:ss a');
+DateFormat hourly = DateFormat('yMd-hh:mm:ss a');
 
 // Add attendance (check-in and check-out time)
 Future<String> clintVisit({
@@ -66,22 +66,20 @@ Future<bool> checkIn({
 
     // Get reference to the attendance collection, using the date as the document ID
     DocumentReference attendanceDoc = firestore
-        .collection('attendance')
+        .collection('dailyCheckIn')
         .doc("${date.day}-${date.month}-${date.year}");
 
     // Add employee attendance data under the date
     await attendanceDoc.set({
-      "title": "today",
+      "title": "${date.day}-${date.month}-${date.year}",
       "dailyUpdate": [
-      {
+        {
           "employeeId": employeeId,
           "name": "name",
-          "currentLocation": [2.4, 3.5],
           "checkIn": {
             "time": formatter.format(date),
             "latLong": latLong,
             "image": "imageUrl",
-            "name": name,
           },
         }
       ]
@@ -107,18 +105,23 @@ Future<bool> checkOut(
     // }
     // Get reference to the attendance collection, using the date as the document ID
     DocumentReference attendanceDoc = firestore
-        .collection('attendance')
+        .collection('dailyCheckOut')
         .doc("${date.day}-${date.month}-${date.year}");
 
     // Add employee attendance data under the date
     await attendanceDoc.set({
-      employeeId: {
-        "checkOut": {
-          "time": formatter.format(date),
-          "latLong": latLong,
-          "image": "imageUrl",
+      "title": "${date.day}-${date.month}-${date.year}",
+      "dailyUpdate": [
+        {
+          "employeeId": employeeId,
+          "name": "name",
+          "checkOut": {
+            "time": formatter.format(date),
+            "latLong": latLong,
+            "image": "imageUrl",
+          },
         }
-      }
+      ]
     }, SetOptions(merge: true));
 
     return true; // Merge if the document already exists
@@ -165,16 +168,14 @@ Future<String> continusUpdate({
   final date = DateTime.now();
   try {
     // Get reference to the attendance collection, using the date as the document ID
-    DocumentReference attendanceDoc = firestore
-        .collection('currentLocation')
-        .doc("${date.day}-${date.month}-${date.year}");
+    DocumentReference attendanceDoc =
+        firestore.collection('currentLocation').doc(employeeId);
 
     // Add employee attendance data under the date
     await attendanceDoc.set({
-      employeeId: {
-        "lastUpdate": formatter.format(date),
-        "latLong": latLong,
-      }
+      "lastUpdate": hourly.format(date),
+      "employeeId": employeeId,
+      "latLong": latLong,
     }, SetOptions(merge: true));
 
     return "Successfully added your attendence"; // Merge if the document already exists
@@ -216,17 +217,29 @@ Future<List<UserModel>> listEmployee() async {
   return [];
 }
 
-Future<List<AttedenceModel>> employeeAttendenceList() async {
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  final snapshot = await firestore.collection("attendance").get();
-  if (snapshot.docs.isNotEmpty) {
-    List<AttedenceModel> userList = snapshot.docs.map((doc) {
-      return AttedenceModel.fromMap(doc.data());
-    }).toList();
-    return userList;
-  }
-  return [];
-}
+// Future<List<AttedenceCheckInModel>> employeeCheckInList() async {
+//   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+//   final snapshot = await firestore.collection("dailyCheckIn").get();
+//   if (snapshot.docs.isNotEmpty) {
+//     List<AttedenceCheckInModel> userList = snapshot.docs.map((doc) {
+//       return AttedenceCheckInModel.fromMap(doc.data());
+//     }).toList();
+//     return userList;
+//   }
+//   return [];
+// }
+
+// Future<List<AttedenceCheckInModel>> employeeCheckOutList() async {
+//   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+//   final snapshot = await firestore.collection("dailyCheckOut").get();
+//   if (snapshot.docs.isNotEmpty) {
+//     List<AttedenceCheckInModel> userList = snapshot.docs.map((doc) {
+//       return AttedenceCheckInModel.fromMap(doc.data());
+//     }).toList();
+//     return userList;
+//   }
+//   return [];
+// }
 
 Future<List<ClintModel>> clintVisitList() async {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;

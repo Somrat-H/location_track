@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/auth_provider.dart';
 import '../employee/auth/auth_landing.dart';
-import 'employe_attendence_view.dart';
+import 'check_in_out/employe_check_in.dart';
 import 'employe_list.dart';
 
 class AdminHomeView extends StatefulWidget {
