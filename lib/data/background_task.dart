@@ -46,12 +46,12 @@ Future<void> _onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  Timer.periodic(const Duration(seconds: 1), (timer) async {
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
     if (service is AndroidServiceInstance) {
-      trackLocation();
+    await  trackLocation();
     }
 
-    service.invoke("update");
+    // service.invoke("update");
   });
 }
 

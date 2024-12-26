@@ -6,8 +6,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/attendence_model.dart';
+import '../models/clint_model.dart';
 import '../models/user_model.dart';
 import 'local_storage.dart';
 
@@ -15,17 +16,53 @@ DateFormat formatter = DateFormat('hh:mm a');
 DateFormat hourly = DateFormat('hh:mm:ss a');
 
 // Add attendance (check-in and check-out time)
-Future<String> addAttendance(
-    {required String employeeId,
-    required List<double> latLong,
-    required File image}) async {
+Future<String> clintVisit({
+  required String employeeId,
+  required String clintName,
+  required String employeName,
+  required String note,
+  required List<double> latLong,
+  required File image,
+}) async {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  final date = DateTime.now();
+  // final date = DateTime.now();
   try {
     final imageUrl = await _uploadImage(image);
     if (imageUrl == null) {
       return "Unable to upload the image";
     }
+
+    final col = firestore.collection('clintVisit').doc();
+
+    // Add employee attendance data under the date
+    await col.set({
+      "id": col.id,
+      "latLong": latLong,
+      "image": imageUrl,
+      "employeeId": employeeId,
+      "note": "note",
+      "time": "formatter.format(date)",
+    }, SetOptions(merge: true));
+
+    return "Successfully added clint visit";
+  } catch (e) {
+    return "Unable to add clint visit";
+  }
+}
+
+Future<bool> checkIn({
+  required String employeeId,
+  required String name,
+  required List<double> latLong,
+  required File image,
+}) async {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final date = DateTime.now();
+  try {
+    // final imageUrl = await _uploadImage(image);
+    // if (imageUrl == null) {
+    //   return false;
+    // }
 
     // Get reference to the attendance collection, using the date as the document ID
     DocumentReference attendanceDoc = firestore
@@ -34,34 +71,40 @@ Future<String> addAttendance(
 
     // Add employee attendance data under the date
     await attendanceDoc.set({
-      employeeId: {
-        "checkIn": {
-          "time": formatter.format(date),
-          "latLong": latLong,
-          "image": "imageUrl",
-          "image": imageUrl,
-        },
-      }
+      "title": "today",
+      "dailyUpdate": [
+      {
+          "employeeId": employeeId,
+          "name": "name",
+          "currentLocation": [2.4, 3.5],
+          "checkIn": {
+            "time": formatter.format(date),
+            "latLong": latLong,
+            "image": "imageUrl",
+            "name": name,
+          },
+        }
+      ]
     }, SetOptions(merge: true));
 
-    return "Successfully added your attendence"; // Merge if the document already exists
+    return true; // Merge if the document already exists
   } catch (e) {
     throw Exception('Failed to add attendance: $e');
   }
 }
 
 // Add attendance (check-in and check-out time)
-Future<String> checkOut(
+Future<bool> checkOut(
     {required String employeeId,
     required List<double> latLong,
     required File image}) async {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final date = DateTime.now();
   try {
-    final imageUrl = await _uploadImage(image);
-    if (imageUrl == null) {
-      return "Unable to upload the image";
-    }
+    // final imageUrl = await _uploadImage(image);
+    // if (imageUrl == null) {
+    //   return false;
+    // }
     // Get reference to the attendance collection, using the date as the document ID
     DocumentReference attendanceDoc = firestore
         .collection('attendance')
@@ -73,14 +116,15 @@ Future<String> checkOut(
         "checkOut": {
           "time": formatter.format(date),
           "latLong": latLong,
-          "image": imageUrl,
+          "image": "imageUrl",
         }
       }
     }, SetOptions(merge: true));
 
-    return "Successfully added your attendence"; // Merge if the document already exists
+    return true; // Merge if the document already exists
   } catch (e) {
-    throw Exception('Failed to add attendance: $e');
+    print(e);
+    return false;
   }
 }
 
@@ -121,8 +165,9 @@ Future<String> continusUpdate({
   final date = DateTime.now();
   try {
     // Get reference to the attendance collection, using the date as the document ID
-    DocumentReference attendanceDoc =
-        firestore.collection('').doc("${date.day}-${date.month}-${date.year}");
+    DocumentReference attendanceDoc = firestore
+        .collection('currentLocation')
+        .doc("${date.day}-${date.month}-${date.year}");
 
     // Add employee attendance data under the date
     await attendanceDoc.set({
@@ -138,7 +183,7 @@ Future<String> continusUpdate({
   }
 }
 
-void trackLocation() async {
+Future<void> trackLocation() async {
   final uid = await getCredential();
   if (uid == null) {
     return;
@@ -153,13 +198,9 @@ void trackLocation() async {
     saveLatLong(
         latLong: LatLng(currentPosition.latitude, currentPosition.longitude));
     continusUpdate(
-        employeeId: uid!,
+        employeeId: uid,
         latLong: [currentPosition.latitude, currentPosition.longitude]);
   }
-}
-
-Future<String> addEmployee({required UserModel user}) async {
-  return "";
 }
 
 Future<List<UserModel>> listEmployee() async {
@@ -167,7 +208,32 @@ Future<List<UserModel>> listEmployee() async {
   final snapshot = await firestore.collection("users").get();
   if (snapshot.docs.isNotEmpty) {
     List<UserModel> userList = snapshot.docs.map((doc) {
-      return UserModel.fromJson(doc.data() as Map<String, dynamic>);
+      return UserModel.fromJson(doc.data());
+    }).toList();
+    return userList;
+  }
+
+  return [];
+}
+
+Future<List<AttedenceModel>> employeeAttendenceList() async {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final snapshot = await firestore.collection("attendance").get();
+  if (snapshot.docs.isNotEmpty) {
+    List<AttedenceModel> userList = snapshot.docs.map((doc) {
+      return AttedenceModel.fromMap(doc.data());
+    }).toList();
+    return userList;
+  }
+  return [];
+}
+
+Future<List<ClintModel>> clintVisitList() async {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final snapshot = await firestore.collection("clintVisit").get();
+  if (snapshot.docs.isNotEmpty) {
+    List<ClintModel> userList = snapshot.docs.map((doc) {
+      return ClintModel.fromJson(doc.data());
     }).toList();
     return userList;
   }

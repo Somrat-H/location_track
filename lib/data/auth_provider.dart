@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location_track/data/background_task.dart';
 import 'package:location_track/data/local_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -82,6 +84,8 @@ class AuthenticationProvider with ChangeNotifier {
     await _auth.signOut();
     _user = null;
     storeCredential(uid: "");
+    BackgroundServiece.stop();
+    saveLatLong(latLong: const LatLng(0, 0));
     notifyListeners();
   }
 

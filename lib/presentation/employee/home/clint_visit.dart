@@ -1,23 +1,23 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/auth_provider.dart';
-import '../../../data/background_task.dart';
 import '../../../data/operations.dart';
 
-class CheckInScreen extends StatefulWidget {
-  const CheckInScreen({super.key});
+class ClintVisitView extends StatefulWidget {
+  const ClintVisitView({super.key});
 
   @override
-  State<CheckInScreen> createState() => _CheckInScreenState();
+  State<ClintVisitView> createState() => _ClintVisitViewState();
 }
 
-class _CheckInScreenState extends State<CheckInScreen> {
+class _ClintVisitViewState extends State<ClintVisitView> {
   // A variable to store the image
   XFile? _image;
   bool isLoading = true;
@@ -73,6 +73,8 @@ class _CheckInScreenState extends State<CheckInScreen> {
     });
   }
 
+  final TextEditingController noteController = TextEditingController();
+  final TextEditingController clintNameController = TextEditingController();
   @override
   void initState() {
     _takePicture();
@@ -89,28 +91,71 @@ class _CheckInScreenState extends State<CheckInScreen> {
         title: const Text("Check In"),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _image == null
-                ? const Center(
-                    child: Text('No image selected.'),
-                  )
-                : Image.file(File(_image!.path)),
-          ),
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : GoogleMap(
-                    buildingsEnabled: true,
-                    initialCameraPosition:
-                        CameraPosition(target: _currentPosition, zoom: 18.0),
-                    markers: _markers,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                  ),
-          )
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            SizedBox(
+              height: 200,
+              child: _image == null
+                  ? const Center(
+                      child: Text('No image selected.'),
+                    )
+                  : Image.file(File(_image!.path)),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Text(
+                "Google Location",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            SizedBox(
+              height: 200,
+              width: double.infinity,
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : GoogleMap(
+                      buildingsEnabled: true,
+                      initialCameraPosition:
+                          CameraPosition(target: _currentPosition, zoom: 18.0),
+                      markers: _markers,
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: true,
+                    ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Meeting Information",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: clintNameController,
+                decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    hintText: "Clint Name",
+                    labelText: "Clint Name"),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                onTapOutside: (event) => FocusScope.of(context).unfocus(),
+                maxLines: 5,
+                minLines: 3,
+                controller: noteController,
+                decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    hintText: "Meeting Note",
+                    labelText: "Meeting Note"),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: SizedBox(
           width: double.infinity,
@@ -125,9 +170,11 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     );
                     return;
                   } else {
-                    final feedback = await checkIn(
+                    final feedback = await clintVisit(
                       employeeId: authProvider.user?.uid ?? "",
-                      name: authProvider.user?.name ?? "",
+                      employeName: authProvider.user?.name ?? "",
+                      clintName: "list name",
+                      note: "lorem",
                       latLong: [
                         _currentPosition.latitude,
                         _currentPosition.latitude
@@ -135,12 +182,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
                       image: File(_image!.path),
                     );
 
-                    if (feedback == true) {
-                      // BackgroundServiece.startBackground();
-                    }
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(feedback?"Successfully Checked in":"Something went wrong")),
+                        SnackBar(content: Text(feedback)),
                       );
                       Navigator.pop(context);
                     }

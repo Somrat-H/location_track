@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/auth_provider.dart';
 import '../employee/auth/auth_landing.dart';
+import 'employe_attendence_view.dart';
 import 'employe_list.dart';
 
 class AdminHomeView extends StatefulWidget {
@@ -44,9 +45,11 @@ class _AdminHomeViewState extends State<AdminHomeView> {
                       context: context, widget: const MyEmployeListView());
                 },
                 child: Text("My Employees")),
-            FilledButton(onPressed: () {}, child: Text("Add Employees")),
             FilledButton(
-                onPressed: () {}, child: Text("Employees Attendences")),
+                onPressed: () {
+                  navigateTo(context: context, widget:const EmployeAttendence());
+                },
+                child: Text("Employees Attendences")),
           ],
         ),
       ),

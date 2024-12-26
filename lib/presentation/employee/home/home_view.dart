@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:location_track/presentation/common/nav.dart';
 import 'package:location_track/env.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:location_track/presentation/employee/home/check_out_view.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/auth_provider.dart';
-import '../../../data/background_task.dart';
-import '../../../data/local_storage.dart';
-import '../../common/dialouge.dart';
 import '../auth/auth_landing.dart';
 import 'check_in_view.dart';
+import 'clint_visit.dart';
+import 'package:permission_handler/permission_handler.dart';
 // import 'dart:io';
 
 class HomeView extends StatefulWidget {
@@ -23,21 +19,51 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  void handlePermission() async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    if (permission != LocationPermission.denied && context.mounted) {
-      // await showLocationPermission(context);
-      await Geolocator.requestPermission();
-    }
-    Geolocator.requestPermission().asStream();
-    // if (permission == LocationPermission.always) {
+  // void handlePermission() async {
+  //   LocationPermission permission = await Geolocator.requestPermission();
+  //   if (permission != LocationPermission.denied && context.mounted) {
+  //     // await showLocationPermission(context);
+  //     await Geolocator.requestPermission();
+  //   }
+  //   Geolocator.requestPermission().asStream();
+  //   // if (permission == LocationPermission.always) {
 
-    // }
+  //   // }
+  // }
+  void _checkPermissions() async {
+    // Requesting Camera permission
+    PermissionStatus cameraStatus = await Permission.camera.status;
+    if (cameraStatus.isDenied) {
+      // Request permission if not granted
+      PermissionStatus cameraNewStatus = await Permission.camera.request();
+      if (cameraNewStatus.isGranted) {
+        // print("Camera permission granted");
+      } else {
+        await Permission.camera.request();
+        // print("Camera permission denied");
+      }
+    } else {
+      // print("Camera permission already granted");
+    }
+
+    // Requesting Location permission
+    PermissionStatus locationStatus = await Permission.location.status;
+    if (locationStatus.isDenied) {
+      // Request location permission if not granted
+      PermissionStatus locationNewStatus = await Permission.location.request();
+      if (locationNewStatus.isGranted) {
+        // print("Location permission granted");
+      } else {
+        // print("Location permission denied");
+      }
+    } else {
+      // print("Location permission already granted");
+    }
   }
 
   @override
   void initState() {
-    handlePermission();
+    _checkPermissions();
     super.initState();
   }
 
@@ -54,7 +80,8 @@ class _HomeViewState extends State<HomeView> {
           IconButton(
               onPressed: () {
                 authProvider.signOut();
-                navigateReplaceTo(context: context, widget:const AuthLandingScreen());
+                navigateReplaceTo(
+                    context: context, widget: const AuthLandingScreen());
               },
               icon: Icon(Icons.logout))
         ],
@@ -72,7 +99,7 @@ class _HomeViewState extends State<HomeView> {
               height: 0,
             ),
             FilledButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   navigateTo(context: context, widget: const CheckInScreen());
                 },
                 icon: Padding(
@@ -113,7 +140,9 @@ class _HomeViewState extends State<HomeView> {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 95, 137, 118),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  navigateTo(context: context, widget: const ClintVisitView());
+                },
                 icon: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Image.asset(

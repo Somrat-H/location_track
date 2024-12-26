@@ -126,10 +126,16 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                       ],
                       image: File(_image!.path),
                     );
-                    BackgroundServiece.stop();
+                    if (feedback == true) {
+                      BackgroundServiece.stop();
+                    }
+
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(feedback)),
+                        SnackBar(
+                            content: Text(feedback
+                                ? "Successfully Checked out"
+                                : "Something went wrong")),
                       );
                       Navigator.pop(context);
                     }

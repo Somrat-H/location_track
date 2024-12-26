@@ -1,0 +1,38 @@
+{
+    "dailyUpdate": [
+        {
+            "checkIn": {
+                "image": "imageUrl",
+                "latLong": [
+                    37.4219983,
+                    37.4219983
+                ],
+                "name": "Test User",
+                "time": " 01: 36 AM"
+            },
+            "name": "name",
+            "employeeId": "UVPydOJj1PQStaExxtHdLGsWL6O2",
+            "currentLocation": [
+                2.4,
+                3.5
+            ]
+        },
+        {
+            "checkIn": {
+                "image": "imageUrl",
+                "latLong": [
+                    37.4219983,
+                    37.4219983
+                ],
+                "name": "Test User",
+                "time": " 01: 36 AM"
+            },
+            "name": "name",
+            "employeeId": "UVPydOJj1PQStaExxtHdLGsWL6O2",
+            "currentLocation": [
+                2.4,
+                3.5
+            ]
+        }
+    ]
+}
