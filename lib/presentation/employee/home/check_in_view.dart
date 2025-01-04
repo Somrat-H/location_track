@@ -1,14 +1,13 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:provider/provider.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
-import '../../../data/auth_provider.dart';
-import '../../../data/background_task.dart';
-import '../../../data/operations.dart';
+import '../../../app_url.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -18,72 +17,140 @@ class CheckInScreen extends StatefulWidget {
 }
 
 class _CheckInScreenState extends State<CheckInScreen> {
-  // A variable to store the image
   XFile? _image;
   bool isLoading = true;
+  bool isSubmitting = false; // Indicates if check-in is in progress
+  String? _locationName;
   final ImagePicker _picker = ImagePicker();
-  // late GoogleMapController _mapController;
   final Set<Marker> _markers = {};
   LatLng _currentPosition = const LatLng(23.8041, 90.4152);
 
   Future<void> _takePicture() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+      if (image != null) {
+        setState(() {
+          _image = image;
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Error taking picture');
+    }
+  }
 
-    setState(() {
-      _image = image;
-    });
+  Future<String?> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
   }
 
   Future<void> _getCurrentLocation() async {
-    // Check for permission status
-    LocationPermission permission = await Geolocator.requestPermission();
+    try {
+      LocationPermission permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showSnackBar('Location permission is required');
+        return;
+      }
 
-    if (permission == LocationPermission.denied) {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(position.latitude, position.longitude);
+
       setState(() {
-        _getCurrentLocation();
-      });
-      // return;
-    }
-    // if (permission != LocationPermission.always) {
-    //   await Geolocator.requestPermission();
-    //   setState(() {});
-    //   return;
-    // }
-
-    // Get current location
-    Position position = await Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.high)
-
-        // You can choose the accuracy
+        _currentPosition = LatLng(position.latitude, position.longitude);
+        _locationName = placemarks.isNotEmpty
+            ? '${placemarks[0].name},${placemarks[0].street}, ${placemarks[0].subLocality},, ${placemarks[0].locality}'
+            : 'Unknown Location';
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('current_location'),
+            position: _currentPosition,
+            infoWindow: InfoWindow(title: _locationName),
+          ),
         );
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      _showSnackBar('Failed to get location: $e');
+    }
+  }
+
+  Future<void> checkIn() async {
+    if (_image == null) {
+      _showSnackBar('Please capture an image first');
+      return;
+    }
 
     setState(() {
-      _currentPosition = LatLng(position.latitude, position.longitude);
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('current_location'),
-          position: _currentPosition,
-          infoWindow: const InfoWindow(title: 'You are here'),
-        ),
-      );
-      //
-
-      isLoading = false;
+      isSubmitting = true;
     });
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+
+    if (token == null) {
+      _showSnackBar('Authentication token not found');
+      setState(() {
+        isSubmitting = false;
+      });
+      return;
+    }
+
+    try {
+      var headers = {
+        'Authorization': 'Bearer $token',
+      };
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse("http://tracking.dengrweb.com/api/v1/attendance"),
+      )
+        ..fields.addAll({
+          'latitude': _currentPosition.latitude.toString(),
+          'longitude': _currentPosition.longitude.toString(),
+          'location': _locationName ?? 'Unknown Location',
+          'attendance_type': "0",
+        })
+        ..files.add(await http.MultipartFile.fromPath('image', _image!.path))
+        ..headers.addAll(headers);
+
+      http.StreamedResponse response = await request.send();
+
+      if (response.statusCode == 200) {
+        String responseBody = await response.stream.bytesToString();
+        _showSnackBar('Check-in successful');
+        Navigator.pop(context); // Navigate back to the home page
+      } else {
+        _showSnackBar('Check-in failed: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      _showSnackBar('Error during check-in: $e');
+    } finally {
+      setState(() {
+        isSubmitting = false;
+      });
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
   void initState() {
-    _takePicture();
-    _getCurrentLocation();
-
     super.initState();
+    _getCurrentLocation();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AuthenticationProvider authProvider = context.watch();
     return Scaffold(
       appBar: AppBar(
         title: const Text("Check In"),
@@ -92,62 +159,54 @@ class _CheckInScreenState extends State<CheckInScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _image == null
-                ? const Center(
-                    child: Text('No image selected.'),
-                  )
-                : Image.file(File(_image!.path)),
+            child: Center(
+              child: _image == null
+                  ? GestureDetector(
+                      onTap: _takePicture,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.camera_enhance,
+                            size: 80,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text('Tap to capture an image'),
+                        ],
+                      ),
+                    )
+                  : Image.file(File(_image!.path)),
+            ),
           ),
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : GoogleMap(
-                    buildingsEnabled: true,
                     initialCameraPosition:
                         CameraPosition(target: _currentPosition, zoom: 18.0),
                     markers: _markers,
                     myLocationEnabled: true,
                     myLocationButtonEnabled: true,
                   ),
-          )
+          ),
         ],
       ),
-      bottomNavigationBar: SizedBox(
-          width: double.infinity,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: FilledButton(
-                onPressed: () async {
-                  if (isLoading) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Looking for your current location')),
-                    );
-                    return;
-                  } else {
-                    final feedback = await checkIn(
-                      employeeId: authProvider.user?.uid ?? "",
-                      name: authProvider.user?.name ?? "",
-                      latLong: [
-                        _currentPosition.latitude,
-                        _currentPosition.latitude
-                      ],
-                      image: File(_image!.path),
-                    );
-
-                    if (feedback == true) {
-                      // BackgroundServiece.startBackground();
-                    }
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(feedback?"Successfully Checked in":"Something went wrong")),
-                      );
-                      Navigator.pop(context);
-                    }
-                  }
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: isSubmitting
+              ? null
+              : () async {
+                  await checkIn();
                 },
-                child: const Text("Confirm Check in")),
-          )),
+          child: isSubmitting
+              ? const CircularProgressIndicator(
+                  color: Colors.white,
+                )
+              : const Text("Confirm Check In"),
+        ),
+      ),
     );
   }
 }

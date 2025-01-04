@@ -50,8 +50,7 @@ class AuthLandingScreen extends StatelessWidget {
               const SizedBox(height: 16.0),
               ElevatedButton(
                 onPressed: () {
-                  navigateReplaceTo(
-                      context: context, widget: AdminLoginInScreen());
+                  navigateReplaceTo(context: context, widget: AdminLoginView());
                 },
                 // onPressed: () {},
                 style: ElevatedButton.styleFrom(

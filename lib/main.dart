@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:location_track/data/local_storage.dart';
 import 'package:location_track/firebase_options.dart';
 import 'package:location_track/presentation/employee/home/home_view.dart';
+import 'package:location_track/presentation/splash_screen.dart';
 
 import 'data/auth_provider.dart';
 import 'data/background_task.dart';
@@ -15,7 +16,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  initBackgroundService();
+  // initBackgroundService();
   runApp(const MyApp());
 }
 
@@ -33,28 +34,28 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreen),
           useMaterial3: true,
         ),
-        home: const AuthGurd(),
+        home: const SplashScreen(),
       ),
     );
   }
 }
 
-class AuthGurd extends StatelessWidget {
-  const AuthGurd({super.key});
+// class AuthGurd extends StatelessWidget {
+//   const AuthGurd({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final AuthenticationProvider authGurd = context.watch();
+//   @override
+//   Widget build(BuildContext context) {
+//     final AuthenticationProvider authGurd = context.watch();
 
-    if (authGurd.isRestoring) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-    if (authGurd.user != null) {
-      return HomeView();
-    } else {
-      return AuthLandingScreen();
-    }
-  }
-}
+//     if (authGurd.isRestoring) {
+//       return const Center(
+//         child: CircularProgressIndicator(),
+//       );
+//     }
+//     if (authGurd.user != null) {
+//       return HomeView();
+//     } else {
+//       return AuthLandingScreen();
+//     }
+//   }
+// }

@@ -1,34 +1,68 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:location_track/presentation/employee/home/home_view.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
-
-import '../../../data/auth_provider.dart';
-import '../../common/nav.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../app_url.dart';
+import 'auth_mode.dart';
 import 'register_view.dart';
+import 'package:http/http.dart' as http;
+// Adjust path based on your project structure
 
 class LoginInScreen extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
 
   LoginInScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
-    final AuthenticationProvider authProvider = context.watch();
-    String email = "";
-    String password = "";
+    TextEditingController emailController = TextEditingController();
+    TextEditingController passwordController = TextEditingController();
 
-    void login() async {
-      final feedback = await authProvider.signIn(email, password,false);
-      if (feedback == true && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login sccessfull with $email')),
+    Future<bool> signIn(
+        String email, String password, String isUserOrAdmin) async {
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+      final String baseUrl = "${base_url}login"; // Replace with your base URL
+
+      final data = {
+        'username': email,
+        'password': password,
+        'user_type': isUserOrAdmin,
+      };
+
+      try {
+        final response = await http.post(
+          Uri.parse(baseUrl),
+          body: data,
         );
-        navigateReplaceTo(context: context, widget: const HomeView());
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed with $email')),
-        );
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> responseData = json.decode(response.body);
+
+          // Decode the response into AuthModel
+          AuthModel authModel = AuthModel.fromJson(responseData);
+
+          // Save the token and serialized AuthModel in SharedPreferences
+          preferences.setString("token", authModel.token ?? "");
+          preferences.setString("auth_data", jsonEncode(authModel.toJson()));
+
+          return true;
+        } else {
+          final errorResponse = json.decode(response.body);
+          throw Exception(errorResponse['message'] ?? 'Login failed');
+        }
+      } catch (error) {
+        debugPrint('Error during login: $error');
+        return false;
       }
+    }
+
+    void showSnackbar(BuildContext context, String message, {Color? color}) {
+      final snackBar = SnackBar(
+        content: Text(message),
+        backgroundColor: color ?? Colors.red,
+        duration: const Duration(seconds: 2),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
     }
 
     return Scaffold(
@@ -60,8 +94,7 @@ class LoginInScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         TextFormField(
-                          onFieldSubmitted: (value) => email = value,
-                          onChanged: (value) => email = value,
+                          controller: emailController,
                           decoration: const InputDecoration(
                             hintText: 'Email',
                             filled: true,
@@ -75,16 +108,12 @@ class LoginInScreen extends StatelessWidget {
                             ),
                           ),
                           keyboardType: TextInputType.emailAddress,
-                          onSaved: (phone) {
-                            // Save it
-                          },
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                           child: TextFormField(
+                            controller: passwordController,
                             obscureText: true,
-                            onFieldSubmitted: (value) => password = value,
-                            onChanged: (value) => password = value,
                             decoration: const InputDecoration(
                               hintText: 'Password',
                               filled: true,
@@ -97,17 +126,52 @@ class LoginInScreen extends StatelessWidget {
                                     BorderRadius.all(Radius.circular(50)),
                               ),
                             ),
-                            onSaved: (passaword) {
-                              // Save it
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password';
+                              }
+
+                              return null;
                             },
                           ),
                         ),
                         ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             if (_formKey.currentState!.validate()) {
                               _formKey.currentState!.save();
-                              // Navigate to the main screen
-                              login();
+
+                              // Show a loading indicator
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+
+                              // Attempt login
+                              final success = await signIn(
+                                emailController.text,
+                                passwordController.text,
+                                "1",
+                              );
+
+                              Navigator.pop(
+                                  context); // Remove loading indicator
+
+                              if (success) {
+                                // Navigate to HomeView on successful login
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const HomeView(),
+                                  ),
+                                );
+                              } else {
+                                // Show error message
+                                showSnackbar(
+                                    context, 'Login failed. Try again.');
+                              }
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -138,8 +202,12 @@ class LoginInScreen extends StatelessWidget {
                         ),
                         TextButton(
                           onPressed: () {
-                            navigateReplaceTo(
-                                context: context, widget: RegisterScreen());
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RegisterScreen(),
+                              ),
+                            );
                           },
                           child: Text.rich(
                             const TextSpan(
