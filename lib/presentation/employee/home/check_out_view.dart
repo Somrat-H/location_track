@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:path_provider/path_provider.dart';
 import '../../../app_url.dart';
 
 class CheckOutView extends StatefulWidget {
@@ -26,17 +26,17 @@ class _CheckOutViewState extends State<CheckOutView> {
   LatLng _currentPosition = const LatLng(23.8041, 90.4152);
 
   Future<void> _takePicture() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-      if (image != null) {
-        setState(() {
-          _image = image;
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error taking picture');
-    }
+  final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+  if (image != null) {
+    final directory = await getApplicationDocumentsDirectory();
+    final savedImagePath = '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final savedImage = await File(image.path).copy(savedImagePath);
+
+    setState(() {
+      _image = XFile(savedImage.path); // Use the saved path
+    });
   }
+}
 
   Future<String?> _getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -100,7 +100,7 @@ class _CheckOutViewState extends State<CheckOutView> {
     }
   }
 
-  Future<void> checkIn() async {
+  Future<void> checkOut() async {
     if (_image == null) {
       _showSnackBar('Please capture an image first');
       return;
@@ -143,6 +143,7 @@ class _CheckOutViewState extends State<CheckOutView> {
         'longitude': _currentPosition.longitude.toString(),
         'location': _locationName ?? 'Unknown Location',
         'attendance_type': "1",
+        "image": _image!.path,
       };
       print(data);
       http.StreamedResponse response = await request.send();
@@ -163,8 +164,6 @@ class _CheckOutViewState extends State<CheckOutView> {
     }
   }
 
-
-
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -181,7 +180,7 @@ class _CheckOutViewState extends State<CheckOutView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Check In"),
+        title: const Text("Check Out"),
         centerTitle: true,
       ),
       body: Column(
@@ -226,13 +225,13 @@ class _CheckOutViewState extends State<CheckOutView> {
           onPressed: isSubmitting
               ? null
               : () async {
-                  await checkIn();
+                  await checkOut();
                 },
           child: isSubmitting
               ? const CircularProgressIndicator(
                   color: Colors.white,
                 )
-              : const Text("Confirm Check In"),
+              : const Text("Confirm Check Out"),
         ),
       ),
     );

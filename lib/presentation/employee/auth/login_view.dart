@@ -18,7 +18,7 @@ class LoginInScreen extends StatelessWidget {
     TextEditingController emailController = TextEditingController();
     TextEditingController passwordController = TextEditingController();
 
-    Future<bool> signIn(
+    Future<AuthModel> signIn(
         String email, String password, String isUserOrAdmin) async {
       SharedPreferences preferences = await SharedPreferences.getInstance();
       final String baseUrl = "${base_url}login"; // Replace with your base URL
@@ -45,14 +45,14 @@ class LoginInScreen extends StatelessWidget {
           preferences.setString("token", authModel.token ?? "");
           preferences.setString("auth_data", jsonEncode(authModel.toJson()));
 
-          return true;
+          return authModel;
         } else {
           final errorResponse = json.decode(response.body);
           throw Exception(errorResponse['message'] ?? 'Login failed');
         }
       } catch (error) {
         debugPrint('Error during login: $error');
-        return false;
+        return AuthModel();
       }
     }
 
@@ -150,7 +150,7 @@ class LoginInScreen extends StatelessWidget {
                               );
 
                               // Attempt login
-                              final success = await signIn(
+                              AuthModel success = await signIn(
                                 emailController.text,
                                 passwordController.text,
                                 "1",
@@ -159,7 +159,7 @@ class LoginInScreen extends StatelessWidget {
                               Navigator.pop(
                                   context); // Remove loading indicator
 
-                              if (success) {
+                              if (success.statusCode == 200) {
                                 // Navigate to HomeView on successful login
                                 Navigator.pushReplacement(
                                   context,
@@ -169,8 +169,8 @@ class LoginInScreen extends StatelessWidget {
                                 );
                               } else {
                                 // Show error message
-                                showSnackbar(
-                                    context, 'Login failed. Try again.');
+                                showSnackbar(context,
+                                    'Login fail for worng user or password. Try again.');
                               }
                             }
                           },

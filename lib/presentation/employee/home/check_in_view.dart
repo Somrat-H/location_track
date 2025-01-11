@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../app_url.dart';
 
@@ -25,18 +26,18 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final Set<Marker> _markers = {};
   LatLng _currentPosition = const LatLng(23.8041, 90.4152);
 
-  Future<void> _takePicture() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-      if (image != null) {
-        setState(() {
-          _image = image;
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error taking picture');
-    }
+    Future<void> _takePicture() async {
+  final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+  if (image != null) {
+    final directory = await getApplicationDocumentsDirectory();
+    final savedImagePath = '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final savedImage = await File(image.path).copy(savedImagePath);
+
+    setState(() {
+      _image = XFile(savedImage.path); // Use the saved path
+    });
   }
+}
 
   Future<String?> _getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../data/auth_provider.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ClintVisitView extends StatefulWidget {
   const ClintVisitView({super.key});
@@ -33,15 +34,16 @@ class _ClintVisitViewState extends State<ClintVisitView> {
   final TextEditingController clintNameController = TextEditingController();
 
   Future<void> _takePicture() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-      if (image != null) {
-        setState(() {
-          _image = image;
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error capturing image: $e');
+    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+    if (image != null) {
+      final directory = await getApplicationDocumentsDirectory();
+      final savedImagePath =
+          '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final savedImage = await File(image.path).copy(savedImagePath);
+
+      setState(() {
+        _image = XFile(savedImage.path); // Use the saved path
+      });
     }
   }
 
@@ -242,7 +244,7 @@ class _ClintVisitViewState extends State<ClintVisitView> {
                 },
           child: isSubmitting
               ? const CircularProgressIndicator(color: Colors.white)
-              : const Text("Confirm Check-in"),
+              : const Text("Confirm Visit"),
         ),
       ),
     );
