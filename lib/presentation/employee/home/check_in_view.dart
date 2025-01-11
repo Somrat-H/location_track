@@ -1,14 +1,21 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:location/location.dart' as lok;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-
-import '../../../app_url.dart';
+import 'package:image/image.dart' as img;
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -26,41 +33,256 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final Set<Marker> _markers = {};
   LatLng _currentPosition = const LatLng(23.8041, 90.4152);
 
-    Future<void> _takePicture() async {
-  final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-  if (image != null) {
-    final directory = await getApplicationDocumentsDirectory();
-    final savedImagePath = '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final savedImage = await File(image.path).copy(savedImagePath);
+  Future<void> initializeService() async {
+    final service = FlutterBackgroundService();
 
-    setState(() {
-      _image = XFile(savedImage.path); // Use the saved path
-    });
+    /// OPTIONAL, using custom notification channel id
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'my_foreground', // id
+      'MY FOREGROUND SERVICE', // title
+      description:
+          'This channel is used for important notifications.', // description
+      importance: Importance.low, // importance must be at low or higher level
+    );
+
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
+    if (Platform.isIOS || Platform.isAndroid) {
+      await flutterLocalNotificationsPlugin.initialize(
+        const InitializationSettings(
+          iOS: DarwinInitializationSettings(),
+          android: AndroidInitializationSettings('ic_bg_service_small'),
+        ),
+      );
+    }
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    await service.configure(
+      androidConfiguration: AndroidConfiguration(
+        // this will be executed when app is in foreground or background in separated isolate
+        onStart: onStart,
+
+        // auto start service
+        autoStart: true,
+        isForegroundMode: true,
+
+        notificationChannelId: 'my_foreground',
+        initialNotificationTitle: 'AWESOME SERVICE',
+        initialNotificationContent: 'Initializing',
+        foregroundServiceNotificationId: 888,
+        foregroundServiceTypes: [AndroidForegroundType.location],
+      ),
+      iosConfiguration: IosConfiguration(
+        // auto start service
+        autoStart: true,
+
+        // this will be executed when app is in foreground in separated isolate
+        onForeground: onStart,
+
+        // you have to enable background fetch capability on xcode project
+        onBackground: onIosBackground,
+      ),
+    );
   }
-}
 
-  Future<String?> _getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+// to ensure this is executed
+// run app from xcode, then from xcode menu, select Simulate Background Fetch
+  Future<void> _takePicture() async {
+    try {
+      // Pick an image using the camera
+      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+
+      if (image != null) {
+        // Save the original image to a known directory
+        final directory = await getApplicationDocumentsDirectory();
+        final savedImagePath =
+            '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final savedImage = await File(image.path).copy(savedImagePath);
+
+        // Mock data for location and temperature
+        String temperature = "25°C"; // Replace with API call if needed
+
+        // Add overlays to the image
+        final updatedImage = await _addOverlayToImage(
+          savedImagePath,
+          "Mirpur",
+          temperature,
+        );
+
+        // Convert image to JPEG (if needed for server upload)
+        final jpegImage = await _convertToJpeg(updatedImage);
+
+        // Update state with the new image
+        setState(() {
+          _image = XFile(jpegImage.path); // Ensure using JPEG for upload
+        });
+
+        // Debug: Print the path of the final image
+        print("Final image saved at: ${jpegImage.path}");
+      }
+    } catch (e) {
+      _showSnackBar("Error capturing image: $e");
+    }
+  }
+
+  Future<File> _addOverlayToImage(
+    String imagePath,
+    String address,
+    String temperature,
+  ) async {
+    final originalImage = await _loadImage(File(imagePath));
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint = Paint();
+    final size = Size(
+        originalImage.width.toDouble(), originalImage.height.toDouble() + 200);
+
+    // Draw the original image
+    canvas.drawImage(originalImage, Offset.zero, paint);
+
+    // Draw a white container at the bottom
+    paint.color = Colors.white;
+    canvas.drawRect(
+      Rect.fromLTWH(0, originalImage.height.toDouble(), size.width, 200),
+      paint,
+    );
+
+    // Add overlay text
+    final textStyle = TextStyle(
+      color: Colors.black,
+      fontSize: 30,
+      fontWeight: FontWeight.bold,
+    );
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+    // Initialize location object
+    lok.Location location = lok.Location();
+
+    // Check and request location permissions
+    bool _serviceEnabled;
+    dynamic _permissionGranted;
+    lok.LocationData _locationData;
+
+    // Check if location service is enabled
+    _serviceEnabled = await location.serviceEnabled();
+    if (!_serviceEnabled) {
+      _serviceEnabled = await location.requestService();
+      if (!_serviceEnabled) {
+        throw Exception("Location service is disabled.");
+      }
+    }
+
+    // Check location permissions
+    _permissionGranted = (await location.hasPermission());
+    if (_permissionGranted == PermissionStatus.denied) {
+      _permissionGranted =
+          (await location.requestPermission());
+      if (_permissionGranted != PermissionStatus.granted) {
+        throw Exception("Location permission denied.");
+      }
+    }
+
+    // Get current location
+    _locationData = await location.getLocation();
+
+    double latitude = _locationData.latitude ?? 0.0;
+    double longitude = _locationData.longitude ?? 0.0;
+
+    final overlayText = [
+      "Lat: $latitude",
+      "Lon: $longitude",
+      "Address: $address",
+      "Temp: $temperature",
+    ];
+
+    double offsetY =
+        originalImage.height.toDouble() + 20.0; // Start at container top
+
+    for (String text in overlayText) {
+      textPainter.text = TextSpan(text: text, style: textStyle);
+      textPainter.layout(minWidth: 0, maxWidth: size.width - 20);
+      textPainter.paint(canvas, Offset(10, offsetY));
+      offsetY += textPainter.height + 5; // Move down for next line
+    }
+
+    final picture = recorder.endRecording();
+    final newImage =
+        await picture.toImage(size.width.toInt(), size.height.toInt());
+    final byteData = await newImage.toByteData(format: ui.ImageByteFormat.png);
+
+    if (byteData != null) {
+      final overlayFile = File(imagePath.replaceFirst('.jpg', '_overlay.png'));
+      await overlayFile.writeAsBytes(byteData.buffer.asUint8List());
+      return overlayFile;
+    } else {
+      throw Exception("Failed to add overlay to image");
+    }
+  }
+
+  Future<ui.Image> _loadImage(File file) async {
+    final bytes = await file.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    return frame.image;
+  }
+
+  Future<File> _convertToJpeg(File pngFile) async {
+    final bytes = await pngFile.readAsBytes();
+    final image = img.decodeImage(bytes);
+    if (image == null) throw Exception("Failed to decode PNG image");
+
+    final jpegBytes =
+        img.encodeJpg(image, quality: 85); // Adjust quality if needed
+    final jpegFilePath = pngFile.path.replaceAll('.png', '.jpg');
+    final jpegFile = File(jpegFilePath);
+    await jpegFile.writeAsBytes(jpegBytes);
+
+    return jpegFile;
   }
 
   Future<void> _getCurrentLocation() async {
     try {
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        _showSnackBar('Location permission is required');
-        return;
-      }
+     lok.Location location = lok.Location();
 
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+    // Check and request location permissions
+    bool _serviceEnabled;
+    dynamic _permissionGranted;
+    lok.LocationData _locationData;
+
+    // Check if location service is enabled
+    _serviceEnabled = await location.serviceEnabled();
+    if (!_serviceEnabled) {
+      _serviceEnabled = await location.requestService();
+      if (!_serviceEnabled) {
+        throw Exception("Location service is disabled.");
+      }
+    }
+
+    // Check location permissions
+    _permissionGranted = (await location.hasPermission());
+    if (_permissionGranted == PermissionStatus.denied) {
+      _permissionGranted =
+          (await location.requestPermission());
+      if (_permissionGranted != PermissionStatus.granted) {
+        throw Exception("Location permission denied.");
+      }
+    }
+
+    // Get current location
+    _locationData = await location.getLocation();
 
       List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
+          await placemarkFromCoordinates(_locationData.latitude!.toDouble(), _locationData.longitude!.toDouble());
 
       setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
+        _currentPosition = LatLng(_locationData.latitude!.toDouble(),_locationData.longitude!.toDouble());
         _locationName = placemarks.isNotEmpty
             ? '${placemarks[0].name},${placemarks[0].street}, ${placemarks[0].subLocality},, ${placemarks[0].locality}'
             : 'Unknown Location';
@@ -86,6 +308,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
       _showSnackBar('Please capture an image first');
       return;
     }
+    debugPrint(_image!.path);
 
     setState(() {
       isSubmitting = true;
@@ -124,6 +347,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
       if (response.statusCode == 200) {
         String responseBody = await response.stream.bytesToString();
+        debugPrint(responseBody);
         _showSnackBar('Check-in successful');
         Navigator.pop(context); // Navigate back to the home page
       } else {
@@ -147,6 +371,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
   @override
   void initState() {
     super.initState();
+    initializeService();
     _getCurrentLocation();
   }
 
@@ -200,6 +425,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
               ? null
               : () async {
                   await checkIn();
+                  final service = FlutterBackgroundService();
+                  service.startService();
+                  setState(() {});
                 },
           child: isSubmitting
               ? const CircularProgressIndicator(
@@ -210,4 +438,148 @@ class _CheckInScreenState extends State<CheckInScreen> {
       ),
     );
   }
+}
+
+  Future<void> uploadLocationData() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+  try {
+    // // Initialize location
+    LocationPermission permission;
+
+  // Test if location services are enabled.
+  final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    // Location services are not enabled don't continue
+    // accessing the position and request users of the 
+    // App to enable the location services.
+    return Future.error('Location services are disabled.');
+  }
+
+  permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      // Permissions are denied, next time you could try
+      // requesting permissions again (this is also where
+      // Android's shouldShowRequestPermissionRationale 
+      // returned true. According to Android guidelines
+      // your App should show an explanatory UI now.
+      return Future.error('Location permissions are denied');
+    }
+  }
+ final data =  await Geolocator.getCurrentPosition();
+  
+  if (permission == LocationPermission.deniedForever) {
+    // Permissions are denied forever, handle appropriately. 
+    return Future.error(
+      'Location permissions are permanently denied, we cannot request permissions.');
+  } 
+    // Prepare request headers
+    var headers = {
+      'Authorization': 'Bearer ${preferences.getString("token")}',
+    };
+
+    final response = await http.post(Uri.parse('http://tracking.dengrweb.com/api/v1/location_track'),
+    body: {
+      'location': 'Dhaka, Bangladesh', // Replace with a dynamic location if needed
+      'longitude': data.longitude.toString(),
+      'latitude': data.latitude.toString(),
+      'attendance_time': DateTime.now().toString(), // Current timestamp
+    },
+    headers: headers
+    );
+    // Prepare request body
+    
+
+    // Send the request
+   
+
+    // Handle the response
+    if (response.statusCode == 200) {
+     
+      print("Data uploaded successfully: ${response.body}");
+    } else {
+      print("Failed to upload data: ${response.reasonPhrase}");
+    }
+  } catch (e) {
+    print("Error occurred while uploading location data: $e");
+  }
+  }
+  
+  
+@pragma('vm:entry-point')
+Future<bool> onIosBackground(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+
+  try {
+    
+await uploadLocationData();
+
+  } catch (e) {
+    debugPrint("Error fetching location: $e");
+  }
+
+  return true;
+}
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  // Only available for flutter 3.0.0 and later
+  DartPluginRegistrant.ensureInitialized();
+
+  // For flutter prior to version 3.0.0
+  // We have to register the plugin manually
+
+  SharedPreferences preferences = await SharedPreferences.getInstance();
+  await preferences.setString("hello", "world");
+
+  /// OPTIONAL when use custom notification
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  if (service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+
+    service.on('setAsBackground').listen((event) {
+      service.setAsBackgroundService();
+    });
+  }
+
+  service.on('stopService').listen((event) {
+    service.stopSelf();
+  });
+
+  // bring to foreground
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
+    if (service is AndroidServiceInstance) {
+      if (await service.isForegroundService()) {
+       await uploadLocationData();
+
+        /// OPTIONAL for use custom notification
+        /// the notification id must be equals with AndroidConfiguration when you call configure() method.
+        flutterLocalNotificationsPlugin.show(
+          888,
+          'COOL SERVICE',
+          'Awesome ${DateTime.now()}',
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'my_foreground',
+              'MY FOREGROUND SERVICE',
+              icon: 'ic_bg_service_small',
+              ongoing: true,
+            ),
+          ),
+        );
+
+        // if you don't using custom notification, uncomment this
+        service.setForegroundNotificationInfo(
+          title: "My App Service",
+          content: "Updated at ",
+        );
+      }
+    }
+  });
 }
