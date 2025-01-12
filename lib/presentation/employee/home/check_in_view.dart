@@ -371,8 +371,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
   @override
   void initState() {
     super.initState();
-    initializeService();
     _getCurrentLocation();
+    initializeService();
+    
   }
 
   @override
@@ -441,71 +442,89 @@ class _CheckInScreenState extends State<CheckInScreen> {
 }
 
   Future<void> uploadLocationData() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
+  SharedPreferences preferences = await SharedPreferences.getInstance();
+
   try {
-    // // Initialize location
-    LocationPermission permission;
+    // Check location services and permissions
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print("Location services are disabled.");
+      return;
+    }
 
-  // Test if location services are enabled.
-  final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    // Location services are not enabled don't continue
-    // accessing the position and request users of the 
-    // App to enable the location services.
-    return Future.error('Location services are disabled.');
-  }
-
-  permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
-      // Permissions are denied, next time you could try
-      // requesting permissions again (this is also where
-      // Android's shouldShowRequestPermissionRationale 
-      // returned true. According to Android guidelines
-      // your App should show an explanatory UI now.
-      return Future.error('Location permissions are denied');
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        print("Location permissions are denied.");
+        return;
+      }
     }
-  }
- final data =  await Geolocator.getCurrentPosition();
-  
-  if (permission == LocationPermission.deniedForever) {
-    // Permissions are denied forever, handle appropriately. 
-    return Future.error(
-      'Location permissions are permanently denied, we cannot request permissions.');
-  } 
-    // Prepare request headers
-    var headers = {
-      'Authorization': 'Bearer ${preferences.getString("token")}',
-    };
 
-    final response = await http.post(Uri.parse('http://tracking.dengrweb.com/api/v1/location_track'),
-    body: {
-      'location': 'Dhaka, Bangladesh', // Replace with a dynamic location if needed
-      'longitude': data.longitude.toString(),
-      'latitude': data.latitude.toString(),
-      'attendance_time': DateTime.now().toString(), // Current timestamp
-    },
-    headers: headers
+    if (permission == LocationPermission.deniedForever) {
+      print("Location permissions are permanently denied.");
+      return;
+    }
+
+    // Start listening to location updates
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high, // High accuracy for precise location
+      distanceFilter: 10, // Notify if the location changes by 10 meters
     );
-    // Prepare request body
-    
 
-    // Send the request
-   
+    Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+      (Position position) async {
+        try {
+          // Pre-HTTP Call Logic
+          print("Preparing to upload location...");
+          print("Latitude: ${position.latitude}, Longitude: ${position.longitude}");
 
-    // Handle the response
-    if (response.statusCode == 200) {
-     
-      print("Data uploaded successfully: ${response.body}");
-    } else {
-      print("Failed to upload data: ${response.reasonPhrase}");
-    }
+          // Validate token
+          String? token = preferences.getString("token");
+          if (token == null || token.isEmpty) {
+            print("No valid token found. Aborting upload.");
+            return;
+          }
+
+          // Validate position data
+          if (position.latitude == 0.0 && position.longitude == 0.0) {
+            print("Invalid location data received. Skipping upload.");
+            return;
+          }
+
+          // Prepare request headers
+          var headers = {
+            'Authorization': 'Bearer $token',
+          };
+
+          // HTTP Request
+          final response = await http.post(
+            Uri.parse('http://tracking.dengrweb.com/api/v1/location_track'),
+            body: {
+              'location': 'Dhaka, Bangladesh', // Replace with dynamic location
+              'longitude': position.longitude.toString(),
+              'latitude': position.latitude.toString(),
+              'attendance_time': DateTime.now().toString(),
+            },
+            headers: headers,
+          );
+
+          // Handle the response
+          if (response.statusCode == 200) {
+            print("Data uploaded successfully: ${response.body}");
+          } else {
+            print("Failed to upload data: ${response.reasonPhrase}");
+          }
+        } catch (e) {
+          print("Error occurred while uploading location data: $e");
+        }
+      },
+    );
   } catch (e) {
-    print("Error occurred while uploading location data: $e");
+    print("Error occurred while setting up location tracking: $e");
   }
-  }
-  
+}
+
   
 @pragma('vm:entry-point')
 Future<bool> onIosBackground(ServiceInstance service) async {
