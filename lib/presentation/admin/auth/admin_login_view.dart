@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:location_track/presentation/admin/admin-auth_model.dart';
 import 'package:location_track/presentation/admin/admin_home_view.dart';
 import 'package:location_track/presentation/employee/home/home_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,12 +25,12 @@ class AdminLoginView extends StatelessWidget {
     Future<bool> signIn(
         String email, String password, String isUserOrAdmin) async {
       SharedPreferences preferences = await SharedPreferences.getInstance();
-      final String baseUrl = "${base_url}login"; // Replace with your base URL
+      final String baseUrl = "${base_url}admin/login"; // Replace with your base URL
 
       final data = {
         'username': email,
         'password': password,
-        'user_type': isUserOrAdmin,
+        // 'user_type': isUserOrAdmin,
       };
 
       try {
@@ -42,10 +43,10 @@ class AdminLoginView extends StatelessWidget {
           final Map<String, dynamic> responseData = json.decode(response.body);
 
           // Decode the response into AuthModel
-          AuthModel authModel = AuthModel.fromJson(responseData);
+          AdminAuthModel authModel = AdminAuthModel.fromJson(responseData);
 
           // Save the token and serialized AuthModel in SharedPreferences
-          preferences.setString("token", authModel.token ?? "");
+          preferences.setString("admin_token", authModel.token ?? "");
           preferences.setString("auth_data", jsonEncode(authModel.toJson()));
 
           return true;

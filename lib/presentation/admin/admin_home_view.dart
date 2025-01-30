@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:location_track/presentation/admin/admin-auth_model.dart';
 import 'package:location_track/presentation/common/nav.dart';
 import 'package:location_track/env.dart';
 import 'package:provider/provider.dart';
@@ -19,7 +20,7 @@ class AdminHomeView extends StatefulWidget {
 }
 
 class _AdminHomeViewState extends State<AdminHomeView> {
-  AuthModel? _authModel;
+  AdminAuthModel? _authModel;
 
   void _checkPermissions() async {
     await [
@@ -33,7 +34,7 @@ class _AdminHomeViewState extends State<AdminHomeView> {
     String? authData = preferences.getString('auth_data');
     if (authData != null) {
       setState(() {
-        _authModel = AuthModel.fromJson(jsonDecode(authData));
+        _authModel = AdminAuthModel.fromJson(jsonDecode(authData));
       });
     }
   }
@@ -90,40 +91,40 @@ class _AdminHomeViewState extends State<AdminHomeView> {
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: NetworkImage(
-                              "https://tracking.dengrweb.com/${_authModel!.data!.image}"),
-                        ),
+                        // CircleAvatar(
+                        //   radius: 40,
+                        //   backgroundImage: NetworkImage(
+                        //       "https://tracking.dengrweb.com/${_authModel!.data!.image}"),
+                        // ),
                         const SizedBox(width: 16.0),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                _authModel?.data!.name ?? "Loading...",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              Text(
-                                _authModel?.data!.designation ??
-                                    "Designation not available",
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 14,
-                                ),
-                              ),
+                              // Text(
+                              //   _authModel?.data!.name ?? "Loading...",
+                              //   style: const TextStyle(
+                              //     fontWeight: FontWeight.bold,
+                              //     fontSize: 18,
+                              //   ),
+                              // ),
+                              // Text(
+                              //   _authModel?.data!.designation ??
+                              //       "Designation not available",
+                              //   style: TextStyle(
+                              //     color: Colors.grey[700],
+                              //     fontSize: 14,
+                              //   ),
+                              // ),
                               const SizedBox(height: 8.0),
-                              Text(
-                                _authModel?.data!.phone ??
-                                    "Phone not available",
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                              ),
+                              // Text(
+                              //   _authModel?.data!.phone ??
+                              //       "Phone not available",
+                              //   style: TextStyle(
+                              //     color: Colors.grey[600],
+                              //     fontSize: 14,
+                              //   ),
+                              // ),
                               Text(
                                 _authModel?.data!.email ??
                                     "Email not available",

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:location_track/models/employee_model.dart';
+import 'package:location_track/presentation/admin/employee_list_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EmployeeListPage extends StatefulWidget {
@@ -12,13 +13,13 @@ class EmployeeListPage extends StatefulWidget {
 }
 
 class _EmployeeListPageState extends State<EmployeeListPage> {
-  EmployeeModel employeeModel = EmployeeModel();
+  EmployeeListModel employeeModel = EmployeeListModel();
 
   /// Fetches the employee list from the API
-  Future<EmployeeModel> fetchEmployeeList() async {
+  Future<EmployeeListModel> fetchEmployeeList() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     final headers = {
-      'Authorization': 'Bearer ${preferences.getString("token")}',
+      'Authorization': 'Bearer ${preferences.getString("admin_token")}',
     };
 
     final request = http.Request(
@@ -33,14 +34,14 @@ class _EmployeeListPageState extends State<EmployeeListPage> {
 
       if (response.statusCode == 200) {
         final responseBody = await response.stream.bytesToString();
-        return EmployeeModel.fromJson(jsonDecode(responseBody));
+        return EmployeeListModel.fromJson(jsonDecode(responseBody));
       } else {
         print("Error: ${response.reasonPhrase}");
-        return EmployeeModel();
+        return EmployeeListModel();
       }
     } catch (e) {
       print("Exception: $e");
-      return EmployeeModel();
+      return EmployeeListModel();
     }
   }
 
@@ -51,19 +52,20 @@ class _EmployeeListPageState extends State<EmployeeListPage> {
         title: const Text("Employee List"),
         centerTitle: true,
       ),
-      body: FutureBuilder<EmployeeModel>(
+      body: FutureBuilder<EmployeeListModel>(
         future: fetchEmployeeList(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
-          } else if (snapshot.data == null || snapshot.data!.data.isEmpty) {
+          } else if (snapshot.data == null ||
+              snapshot.data!.data!.data!.isEmpty) {
             return const Center(child: Text("No employees found."));
           } else {
-            final employees = snapshot.data!.data;
+            final employees = snapshot.data!.data!.data;
             return ListView.builder(
-              itemCount: employees.length,
+              itemCount: employees!.length,
               itemBuilder: (context, index) {
                 final employee = employees[index];
                 return Card(
